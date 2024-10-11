@@ -12,15 +12,8 @@ public class ProductService {
         this.restTemplate = restTemplate;
     }
 
-    // Obtener todos los productos
-    public String getAllProducts() {
-        String url = "https://dummyjson.com/products";
-        return restTemplate.getForObject(url, String.class);  // Puedes mapear a una clase en lugar de String
-    }
-
-    // Obtener un solo producto por ID
     public String getProductById(int id) {
         String url = "https://dummyjson.com/products/" + id;
-        return restTemplate.getForObject(url, String.class);  // Puedes mapear a una clase en lugar de String
+        return restTemplate.getForObject(url, String.class);
     }
 }
