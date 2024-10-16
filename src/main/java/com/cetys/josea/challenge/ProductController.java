@@ -4,46 +4,49 @@ import com.cetys.josea.challenge.services.LLMService;
 import com.cetys.josea.challenge.services.ProductService;
 import com.cetys.josea.challenge.services.RedisService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+
+import java.util.Map;
 
 @RestController
-@RequestMapping("/api/")
+@ResponseBody
 public class ProductController {
 
-    @Autowired
-    private RedisService redisService;
+    private final RedisService redisService;
+    private final ProductService productService;
+    private final LLMService llmService;
 
     @Autowired
-    private ProductService productService;
-
-    @Autowired
-    private LLMService llmService;
+    public ProductController(RedisService redisService, ProductService productService, LLMService llmService) {
+        this.redisService = redisService;
+        this.productService = productService;
+        this.llmService = llmService;
+    }
 
     @GetMapping("/products/{id}")
-    public ResponseEntity<String> getProduct(@PathVariable String id) {
-        // Buscar en Redis si el ID existe
+    public ResponseEntity<Map<String, String>> getProduct(@PathVariable String id) {
+        // Verificar si el producto ya está en caché
         String cachedProduct = redisService.getValue(id);
 
         if (cachedProduct != null) {
-            // Si existe, devolver el JSON guardado con el estado 201
-            return ResponseEntity.status(HttpStatus.CREATED).body(cachedProduct);
+            return ResponseEntity.status(HttpStatus.CREATED).body(Map.of("product", cachedProduct));
         }
 
-        // Si no existe, llamar al ProductService para obtener el producto
+        // Si no está en caché, obtener el producto desde el ProductService
         String productJson = productService.getProductById(Integer.parseInt(id));
 
-        // Llamar a LLMService para explicar el producto
-        String llmResult = llmService.explainProduct(productJson);
+        // Obtener la explicación amigable desde LLMService
+        String response = llmService.getFriendlyExplanation(productJson);
 
-        // Guardar el resultado en Redis
-        redisService.saveValue(id, llmResult);
+        // Guardar la respuesta en Redis
+        redisService.saveValue(id, response);
 
-        // Devolver el resultado con un estado 200
-        return ResponseEntity.status(HttpStatus.OK).body(llmResult);
+        // Retornar la explicación generada
+        return ResponseEntity.status(HttpStatus.OK).body(Map.of("product", response));
     }
 }
